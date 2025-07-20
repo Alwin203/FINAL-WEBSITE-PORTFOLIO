@@ -16,7 +16,7 @@ interface UploadResponse {
 
 const UploadPage: React.FC = () => {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
-    //const [categories, setCategories] = useState<string[]>([])//
+    const [categories, setCategories] = useState<string[]>([])
     const [password, setPassword] = useState('')
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [error, setError] = useState('')
@@ -31,6 +31,7 @@ const UploadPage: React.FC = () => {
             setError('Incorrect password')
         }
     }, [password])
+    console.log(categories)
 
     const handleUploadSuccess = useCallback((response: UploadResponse) => {
         const newImages = response.uploadedFiles.map((path: string) => ({
