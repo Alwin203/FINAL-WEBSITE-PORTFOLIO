@@ -16,7 +16,7 @@ interface UploadResponse {
 
 const UploadPage: React.FC = () => {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
-    const [categories, setCategories] = useState<string[]>([])
+    //const [categories, setCategories] = useState<string[]>([])//
     const [password, setPassword] = useState('')
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [error, setError] = useState('')
