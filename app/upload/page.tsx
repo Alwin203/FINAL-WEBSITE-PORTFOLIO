@@ -1,6 +1,5 @@
-
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import ImageUpload from "@/app/components/ImageUpload"
 import Image from 'next/image'
 import Link from 'next/link'
@@ -10,6 +9,11 @@ interface UploadedImage {
     category: string
 }
 
+interface UploadResponse {
+    uploadedFiles: string[];
+    category: string;
+}
+
 const UploadPage: React.FC = () => {
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
     const [categories, setCategories] = useState<string[]>([])
@@ -17,8 +21,7 @@ const UploadPage: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [error, setError] = useState('')
 
-
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = useCallback((e: React.FormEvent) => {
         e.preventDefault()
 
         if (password === process.env.NEXT_PUBLIC_UPLOAD_PAGE_PASSWORD) {
@@ -27,31 +30,31 @@ const UploadPage: React.FC = () => {
         } else {
             setError('Incorrect password')
         }
-    }
+    }, [password])
 
-    interface UploadResponse {
-        uploadedFiles: string[];
-        category: string;
-    }
-    
-    const handleUploadSuccess = (response: UploadResponse) => {
+    const handleUploadSuccess = useCallback((response: UploadResponse) => {
         const newImages = response.uploadedFiles.map((path: string) => ({
             path,
             category: response.category
         }))
+        
         setUploadedImages(prev => [...prev, ...newImages])
-        if (!categories.includes(response.category)) {
-            setCategories(prev => [...prev, response.category])
-        }
-    }
+        
+        setCategories(prev => {
+            if (!prev.includes(response.category)) {
+                return [...prev, response.category]
+            }
+            return prev
+        })
+    }, [])
 
-    const handleUploadError = (error: string) => {
+    const handleUploadError = useCallback((error: string) => {
         console.error('Upload error:', error)
-    }
+    }, [])
 
-    const clearUploadedImages = () => {
+    const clearUploadedImages = useCallback(() => {
         setUploadedImages([])
-    }
+    }, [])
 
     if (!isAuthenticated) {
         return (
@@ -70,7 +73,7 @@ const UploadPage: React.FC = () => {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 text-gray-500  py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className="w-full px-4 text-gray-500 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 placeholder="Enter password"
                                 required
                             />
@@ -90,7 +93,7 @@ const UploadPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#e0e7ef] to-[#c7d2fe] py-12">
-                       <div className="container mx-auto px-4 max-w-6xl">
+            <div className="container mx-auto px-4 max-w-6xl">
                 <div>
                     <Link
                         href="/"
@@ -141,7 +144,7 @@ const UploadPage: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
                             {uploadedImages.map((image, index) => (
                                 <div
-                                    key={index}
+                                    key={`${image.path}-${index}`}
                                     className="bg-white/90 rounded-2xl shadow-lg overflow-hidden border border-indigo-100 hover:shadow-2xl transition-shadow group"
                                 >
                                     <div className="relative w-full h-56 bg-gradient-to-br from-indigo-100 to-pink-100">

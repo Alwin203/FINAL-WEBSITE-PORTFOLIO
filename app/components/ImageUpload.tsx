@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { fetchCategoriesAction, uploadImagesAction } from '@/lib/actions'
 
@@ -39,29 +39,34 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUploadSuccess, onUploadErro
 
     fetchCategories()
   }, [])
-// Generate previews when files change
-useEffect(() => {
-  // Clean up previous blobs
-  const previousUrls = previewUrls; // Capture current value
-  previousUrls.forEach(url => {
-    if (url.startsWith('blob:')) {
-      URL.revokeObjectURL(url)
+
+  // Generate previews when files change - FIXED: Removed previewUrls from dependencies
+  useEffect(() => {
+    // Clean up previous URLs
+    previewUrls.forEach(url => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url)
+      }
+    })
+
+    // Generate new URLs
+    const urls = selectedFiles
+      .filter(file => file && file.size > 0)
+      .map(file => URL.createObjectURL(file))
+
+    setPreviewUrls(urls)
+
+    // Cleanup function to run when component unmounts or selectedFiles changes
+    return () => {
+      urls.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url)
+        }
+      })
     }
-  })
+  }, [selectedFiles]) // FIXED: Only depend on selectedFiles
 
-  const urls = selectedFiles
-    .filter(file => file && file.size > 0)
-    .map(file => URL.createObjectURL(file))
-
-  setPreviewUrls(urls)
-
-  // Cleanup on unmount
-  return () => {
-    urls.forEach(url => URL.revokeObjectURL(url))
-  }
-}, [selectedFiles, previewUrls]) // Added previewUrls to dependencies
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const validFiles = files.filter(file => {
       const isValidType = file.type.startsWith('image/')
@@ -74,21 +79,21 @@ useEffect(() => {
     }
 
     setSelectedFiles(validFiles)
-  }
+  }, [])
 
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setCategory(e.target.value)
-  }
+  }, [])
 
-  const handleCategorySelect = (selectedCategory: string) => {
+  const handleCategorySelect = useCallback((selectedCategory: string) => {
     setCategory(selectedCategory)
-  }
+  }, [])
 
-  const removeFile = (index: number) => {
+  const removeFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
-  }
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (selectedFiles.length === 0) {
@@ -124,11 +129,16 @@ useEffect(() => {
         // Reset
         setSelectedFiles([])
         setCategory('')
-        const refreshCategories = async () => {
-          const res = await fetchCategoriesAction()
-          if (res) setExistingCategories(res)
+        
+        // Refresh categories
+        try {
+          const refreshedCategories = await fetchCategoriesAction()
+          if (refreshedCategories) {
+            setExistingCategories(refreshedCategories)
+          }
+        } catch (error) {
+          console.error('Failed to refresh categories:', error)
         }
-        refreshCategories()
       } else {
         throw new Error(result.error || 'Upload failed')
       }
@@ -139,7 +149,18 @@ useEffect(() => {
     } finally {
       setIsUploading(false)
     }
-  }
+  }, [selectedFiles, category, onUploadSuccess, onUploadError])
+
+  // Cleanup URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url)
+        }
+      })
+    }
+  }, []) // Empty dependency array - only runs on unmount
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-lg">
@@ -154,7 +175,7 @@ useEffect(() => {
             value={category}
             onChange={handleCategoryChange}
             placeholder="Enter category name"
-            className="w-full p-3 border rounded-md text-black  focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 border rounded-md text-black focus:ring-2 focus:ring-blue-500"
             required
           />
           {existingCategories.length > 0 && (
@@ -200,7 +221,7 @@ useEffect(() => {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {previewUrls.map((url, index) => (
-                <div key={index} className="relative border rounded-lg overflow-hidden">
+                <div key={`${selectedFiles[index]?.name}-${index}`} className="relative border rounded-lg overflow-hidden">
                   <Image
                     src={url}
                     alt={`Preview ${index + 1}`}
